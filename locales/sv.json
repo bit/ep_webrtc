@@ -1,0 +1,16 @@
+{
+    "pad.settings.enablertc": "Aktivera ljud- eller videochat",
+
+    "pad.ep_webrtc.error.notSupported.sorry": "Din webbläsare stöder inte WebRTC (eller är det frånslaget i dina inställningar).",
+    "pad.ep_webrtc.error.notSupported.howTo": "Du måste ha en webbläsare som stöder WebRCT för att delta i ljud- eller videochatten, till exempel Chrome, Firefox, Safari, Edge eller Opera.",
+    "pad.ep_webrtc.error.notSupported.findOutMore": "Klicka här för mer information.",
+    "pad.ep_webrtc.error.ssl": "Du måste installera SSL-certifikat till din Etherpad-instans för att använda WebRTC.",
+    "pad.ep_webrtc.error.permission": "Du måste behöver ge oss åtkomst till din kamera och mikrofon.",
+    "pad.ep_webrtc.error.notFound": "Vi kan tyvärr inte hitta en lämplig kamera på din enhet. Kontrollera att din kamera är korrekt inställd, om du har en, och uppdatera sedan webbsidan.",
+    "pad.ep_webrtc.error.notReadable": "Vi har tyvärr stött på ett hårdvarufel som gör att vi inte kommer åt din kamera och/eller mikrofon:",
+    "pad.ep_webrtc.error.otherCantAccess": "Webbläsaren kan inte använda din kamera och/eller mikrofon. Kontrollera gärna behörigheterna i din webbläsares inställningar. Detta beror troligen inte på ett hårdvarufel:",
+    "pad.ep_webrtc.error.other": "Vi har tyvärr stött på ett okänt fel:",
+
+    "pad.settings.audioenabledonstart": "Ljud påslaget från början",
+    "pad.settings.videoenabledonstart": "Video påslagen från början"
+}
