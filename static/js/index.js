@@ -21,6 +21,24 @@ const padcookie = require('ep_etherpad-lite/static/js/pad_cookie').padcookie;
 const enableDebugLogging = false;
 const debug = (...args) => { if (enableDebugLogging) console.debug('ep_webrtc:', ...args); };
 
+const EventTargetPolyfill = (() => {
+  try {
+    new class extends EventTarget { constructor() { super(); } }();
+    return EventTarget;
+  } catch (err) {
+    debug('Browser does not support extending EventTarget, using a workaround. Error:', err);
+    // Crude, but works well enough.
+    return class {
+      constructor() {
+        const delegate = document.createDocumentFragment();
+        for (const fn of ['addEventListener', 'dispatchEvent', 'removeEventListener']) {
+          this[fn] = (...args) => delegate[fn](...args);
+        }
+      }
+    };
+  }
+})();
+
 // Used to help remote peers detect when this user reloads the page.
 const sessionId = Date.now();
 // Incremented each time a new RTCPeerConnection is created.
@@ -38,7 +56,7 @@ class Mutex {
   }
 }
 
-class LocalTracks extends EventTarget {
+class LocalTracks extends EventTargetPolyfill {
   constructor() {
     super();
     Object.defineProperty(this, 'stream', {value: new MediaStream(), writeable: false});
@@ -104,7 +122,7 @@ class ClosedEvent extends CustomEvent {
 //     PeerState is closed.
 //   * 'closed' (see ClosedEvent): Emitted when the PeerState is closed, except when closed by a
 //     call to close(). The PeerState must not be used after it is closed.
-class PeerState extends EventTarget {
+class PeerState extends EventTargetPolyfill {
   constructor(pcConfig, polite, sendMessage, localTracks, debug) {
     super();
     this._pcConfig = pcConfig;
