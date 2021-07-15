@@ -236,7 +236,6 @@ class PeerState extends EventTargetPolyfill {
     pc.addEventListener('iceconnectionstatechange', () => {
       this._debug(`ICE connection state changed to ${pc.iceConnectionState}`);
       switch (pc.iceConnectionState) {
-        case 'closed': this.close(true); break;
         case 'failed': pc.restartIce(); break;
       }
     });
