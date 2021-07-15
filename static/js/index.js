@@ -184,6 +184,10 @@ class PeerState extends EventTargetPolyfill {
   }
 
   _resetConnection(peerIds = null) {
+    if (this._closed) {
+      this._debug('ignoring _resetConnection() on closed PeerState');
+      return;
+    }
     this._debug('creating RTCPeerConnection');
     this._setRemoteStream(null);
     this._ids.from.instance = ++nextInstanceId;
@@ -215,7 +219,7 @@ class PeerState extends EventTargetPolyfill {
     pc.addEventListener('connectionstatechange', () => {
       this._debug(`connection state changed to ${pc.connectionState}`);
       switch (pc.connectionState) {
-        case 'closed': this.close(true); break;
+        case 'closed': this._resetConnection(); break;
         case 'connected':
           if (this._remoteStream == null) this._setRemoteStream(this._disconnectedRemoteStream);
           break;
