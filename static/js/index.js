@@ -240,7 +240,12 @@ class PeerState extends EventTargetPolyfill {
     pc.addEventListener('iceconnectionstatechange', () => {
       this._debug(`ICE connection state changed to ${pc.iceConnectionState}`);
       switch (pc.iceConnectionState) {
-        case 'failed': pc.restartIce(); break;
+        case 'failed':
+          // Chrome 65 and other old browsers don't have pc.restartIce(). Ignore the failure on
+          // those browsers; the connection state should transition to failed which will trigger a
+          // call to this._resetConnection().
+          if (typeof pc.restartIce === 'function') pc.restartIce();
+          break;
       }
     });
     // RTCPeerConnection.peerIdentity is mentioned in https://www.w3.org/TR/webrtc-identity/ but as
