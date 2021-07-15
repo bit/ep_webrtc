@@ -129,6 +129,7 @@ class PeerState extends EventTargetPolyfill {
     this._polite = polite;
     this._sendMessage = (msg) => sendMessage(Object.assign({ids: this._ids}, msg));
     this._localTracks = localTracks;
+    this._failedSLDAttempts = 0;
     this._debug = debug;
     this._debug(`I am the ${this._polite ? '' : 'im'}polite peer`);
     this._ids = {
@@ -211,7 +212,13 @@ class PeerState extends EventTargetPolyfill {
       try {
         negotiationState.makingOffer = true;
         await pc.setLocalDescription();
+        this._failedSLDAttempts = 0;
         this._sendMessage({description: pc.localDescription});
+      } catch (err) {
+        console.error('Error setting local description:', err);
+        if (++this._failedSLDAttempts > 10) throw err; // Avoid an infinite loop.
+        this._resetConnection();
+        return;
       } finally {
         negotiationState.makingOffer = false;
       }
