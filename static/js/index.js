@@ -21,6 +21,24 @@ const padcookie = require('ep_etherpad-lite/static/js/pad_cookie').padcookie;
 const enableDebugLogging = false;
 const debug = (...args) => { if (enableDebugLogging) console.debug('ep_webrtc:', ...args); };
 
+const EventTargetPolyfill = (() => {
+  try {
+    new class extends EventTarget { constructor() { super(); } }();
+    return EventTarget;
+  } catch (err) {
+    debug('Browser does not support extending EventTarget, using a workaround. Error:', err);
+    // Crude, but works well enough.
+    return class {
+      constructor() {
+        const delegate = document.createDocumentFragment();
+        for (const fn of ['addEventListener', 'dispatchEvent', 'removeEventListener']) {
+          this[fn] = (...args) => delegate[fn](...args);
+        }
+      }
+    };
+  }
+})();
+
 // Used to help remote peers detect when this user reloads the page.
 const sessionId = Date.now();
 // Incremented each time a new RTCPeerConnection is created.
@@ -38,7 +56,7 @@ class Mutex {
   }
 }
 
-class LocalTracks extends EventTarget {
+class LocalTracks extends EventTargetPolyfill {
   constructor() {
     super();
     Object.defineProperty(this, 'stream', {value: new MediaStream(), writeable: false});
@@ -104,13 +122,14 @@ class ClosedEvent extends CustomEvent {
 //     PeerState is closed.
 //   * 'closed' (see ClosedEvent): Emitted when the PeerState is closed, except when closed by a
 //     call to close(). The PeerState must not be used after it is closed.
-class PeerState extends EventTarget {
+class PeerState extends EventTargetPolyfill {
   constructor(pcConfig, polite, sendMessage, localTracks, debug) {
     super();
     this._pcConfig = pcConfig;
     this._polite = polite;
     this._sendMessage = (msg) => sendMessage(Object.assign({ids: this._ids}, msg));
     this._localTracks = localTracks;
+    this._failedSLDAttempts = 0;
     this._debug = debug;
     this._debug(`I am the ${this._polite ? '' : 'im'}polite peer`);
     this._ids = {
@@ -166,6 +185,10 @@ class PeerState extends EventTarget {
   }
 
   _resetConnection(peerIds = null) {
+    if (this._closed) {
+      this._debug('ignoring _resetConnection() on closed PeerState');
+      return;
+    }
     this._debug('creating RTCPeerConnection');
     this._setRemoteStream(null);
     this._ids.from.instance = ++nextInstanceId;
@@ -189,7 +212,13 @@ class PeerState extends EventTarget {
       try {
         negotiationState.makingOffer = true;
         await pc.setLocalDescription();
+        this._failedSLDAttempts = 0;
         this._sendMessage({description: pc.localDescription});
+      } catch (err) {
+        console.error('Error setting local description:', err);
+        if (++this._failedSLDAttempts > 10) throw err; // Avoid an infinite loop.
+        this._resetConnection();
+        return;
       } finally {
         negotiationState.makingOffer = false;
       }
@@ -197,7 +226,7 @@ class PeerState extends EventTarget {
     pc.addEventListener('connectionstatechange', () => {
       this._debug(`connection state changed to ${pc.connectionState}`);
       switch (pc.connectionState) {
-        case 'closed': this.close(true); break;
+        case 'closed': this._resetConnection(); break;
         case 'connected':
           if (this._remoteStream == null) this._setRemoteStream(this._disconnectedRemoteStream);
           break;
@@ -218,8 +247,12 @@ class PeerState extends EventTarget {
     pc.addEventListener('iceconnectionstatechange', () => {
       this._debug(`ICE connection state changed to ${pc.iceConnectionState}`);
       switch (pc.iceConnectionState) {
-        case 'closed': this.close(true); break;
-        case 'failed': pc.restartIce(); break;
+        case 'failed':
+          // Chrome 65 and other old browsers don't have pc.restartIce(). Ignore the failure on
+          // those browsers; the connection state should transition to failed which will trigger a
+          // call to this._resetConnection().
+          if (typeof pc.restartIce === 'function') pc.restartIce();
+          break;
       }
     });
     // RTCPeerConnection.peerIdentity is mentioned in https://www.w3.org/TR/webrtc-identity/ but as
